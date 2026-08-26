@@ -74,6 +74,11 @@
 </div>
 
 <script>
+/* Set this once after creating your repo, e.g. "yourname/feature-story-videos".
+   When hosted on GitHub Pages, any MP4 in videos/ that isn't a named slot
+   below appears automatically in a "New — unsorted" section. */
+const GITHUB_REPO = "";
+
 /* ── Your features & variants ─────────────────────────────────────────────
    Each variant: { src, poster, name, tag, desc, square }
    Leave src empty ("") for a planned-but-not-rendered slot.               */
@@ -177,6 +182,38 @@ for(const s of SECTIONS){
     grid.appendChild(card);
   }
   main.appendChild(sec);
+}
+
+// ── auto-discover unlisted videos (GitHub Pages only) ──
+if (GITHUB_REPO) {
+  const known = new Set(SECTIONS.flatMap(s => s.variants.map(v => (v.src||"").split("/").pop())));
+  fetch(`https://api.github.com/repos/${GITHUB_REPO}/contents/videos`)
+    .then(r => r.ok ? r.json() : [])
+    .then(files => {
+      const fresh = files.filter(f => /\.mp4$/i.test(f.name) && !known.has(f.name));
+      if (!fresh.length) return;
+      const sec = document.createElement("section");
+      sec.id = "unsorted";
+      sec.innerHTML = `<div class="shead"><span class="snum">+</span><h2>New — unsorted</h2></div>
+        <p class="tagline">Just uploaded, not yet placed in a section.</p><div class="grid"></div>`;
+      const grid = sec.querySelector(".grid");
+      for (const f of fresh) {
+        const card = document.createElement("article");
+        card.className = "film";
+        const title = f.name.replace(/\.mp4$/i,"").replace(/[-_]/g," ");
+        card.innerHTML = `<video src="videos/${f.name}" controls preload="metadata" loop playsinline></video>
+          <div class="body"><div class="vname">${title}</div><p class="desc">videos/${f.name}</p></div>`;
+        const v = card.querySelector("video");
+        card.addEventListener("mouseenter",()=>{ if(v.paused){ v.muted=true; v.play().catch(()=>{});} });
+        card.addEventListener("mouseleave",()=>{ if(v.muted){ v.pause(); v.currentTime=0; } });
+        grid.appendChild(card);
+      }
+      document.getElementById("main").appendChild(sec);
+      const a = document.createElement("a");
+      a.href = "#unsorted"; a.innerHTML = "<b>+</b>New";
+      document.getElementById("nav").appendChild(a);
+    })
+    .catch(()=>{});
 }
 </script>
 </body>
